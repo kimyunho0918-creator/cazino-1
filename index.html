@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VIP Luxury Slot Machine (1번 기기)</title>
+    <title>VIP Luxury Slot Machine</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
   <div id="stealth-light"></div>
 
   <div id="entry-screen" class="screen active menu-panel">
@@ -19,22 +18,14 @@
 
   <div id="game-screen" class="screen">
     <div class="machine-wrap">
-
       <button id="quit-btn" onclick="endGame(true)">
-        <span>CASH OUT</span>
-        <span style="font-size: 14px; color: #a38a41; font-family: sans-serif;">(정산 및 종료)</span>
+        <span>CASH OUT</span><span style="font-size: 14px; color: #a38a41;">(정산 및 종료)</span>
       </button>
       
       <div class="slot-machine-core">
         <div class="info-panel">
-          <div class="info-box">
-            <div>CURRENT BALANCE (PT)</div>
-            <span id="balance-display">0</span>
-          </div>
-          <div class="info-box">
-            <div>BET AMOUNT (PT)</div>
-            <input type="number" id="bet-input" value="100" min="10" step="10" />
-          </div>
+          <div class="info-box"><div>CURRENT BALANCE (PT)</div><span id="balance-display">0</span></div>
+          <div class="info-box"><div>BET AMOUNT (PT)</div><input type="number" id="bet-input" value="100" min="10" step="10" /></div>
         </div>
 
         <div class="reel-board">
@@ -48,25 +39,12 @@
       </div>
 
       <div id="handle-container" class="handle-box" onclick="spin()">
-        <div class="handle-base"></div>
-        <div class="handle-stick"><div class="handle-knob"></div></div>
+        <div class="handle-base"></div><div class="handle-stick"><div class="handle-knob"></div></div>
       </div>
-
     </div>
   </div>
 
-  <div id="game-over-screen" class="screen menu-panel">
-    <h1 style="color: #ff6b6b;">GAME OVER</h1>
-    <p style="color: var(--gold); font-weight: bold;">최종 정산이 완료되었습니다.</p>
-    <p style="margin-bottom: 5px;">FINAL BALANCE</p>
-    <h2 id="final-balance-display">0</h2>
-    <button class="gold-btn" onclick="location.reload()" style="margin-top: 20px;">처음으로 돌아가기</button>
-  </div>
-
-  <script>
-      const MY_MACHINE_ID = "slot_1"; 
-  </script>
-
+  <script> const MY_MACHINE_ID = "slot_1"; </script>
   <script src="script.js"></script>
 </body>
 </html>
