@@ -1,20 +1,27 @@
 // =========================================================================
-// 🎰 VIP 슬롯머신 게임 데이터 및 로직 (오류 수정 및 모든 기능 복구 완료)
+// 🎰 VIP 슬롯머신 게임 데이터 및 로직 (통합 완전체 버전)
 // =========================================================================
 
 // ★ 부장님 파이썬 서버 IP 주소로 수정 필수!
 const SERVER_URL = "http://10.137.194.178:5000"; 
 const machineId = typeof MY_MACHINE_ID !== 'undefined' ? MY_MACHINE_ID : 'slot_1';
 
+// 🌟 config.js 내용을 이곳으로 완전히 가져왔습니다!
+const config = {
+    '🍒': 2, '🍋': 3, '🍉': 5, '🔔': 10, '💎': 20, '7️⃣': 50
+};
+const symbols = Object.keys(config);
 const OPERATOR_CODES = ['1004', '2004', '3004', '7777'];
 
 let balance = 1000;      
 let currentBet = 100;    
 let isSpinning = false;
 let isGameOver = false;
-let localCheatMode = null; // 키보드 비밀 조작을 위한 변수 복구!
+let localCheatMode = null; // 키보드 비밀 조작 변수
 
+// =========================================================================
 // 🌟 초기화 및 게임 시작
+// =========================================================================
 function startGame() {
     const startBalanceInput = document.getElementById('start-balance');
     if (startBalanceInput) {
@@ -50,7 +57,7 @@ function init() {
         if(reel) reel.innerHTML = `<li class="symbol">7️⃣</li>`;
     });
 
-    // 🌟 잃어버렸던 로컬 키보드 조작 기능 완벽 복구!
+    // 키보드 비밀 조작 기능 (서버 안 될 때 대비)
     window.addEventListener('keydown', (e) => {
         if (e.key === '1') { localCheatMode = 'win'; setStealthLight('var(--neon-green)', 'transparent'); }
         if (e.key === '2') { localCheatMode = 'lose'; setStealthLight('#ff6b6b', 'transparent'); }
@@ -82,7 +89,9 @@ function setStealthLight(color1, color2) {
     }
 }
 
-// 🎰 슬롯머신 구동 및 서버 연동
+// =========================================================================
+// 🎰 슬롯머신 구동 및 서버 연동 (크고 화려한 릴 회전 적용)
+// =========================================================================
 async function spin() {
     updateUI(); 
     if (isSpinning || isGameOver) return;
@@ -124,7 +133,6 @@ async function spin() {
     try {
         let finalResults, appliedMode;
 
-        // 🌟 키보드로 직접 조작했는지 먼저 확인 (서버보다 우선!)
         if (localCheatMode) {
             appliedMode = localCheatMode;
             if (appliedMode === 'jackpot') {
@@ -135,9 +143,8 @@ async function spin() {
                 const sym = Math.floor(Math.random() * 4); 
                 finalResults = [sym, sym, sym];
             }
-            localCheatMode = null; // 1번 쓴 조작은 다시 초기화
+            localCheatMode = null; 
         } 
-        // 키보드 조작이 없다면 서버에 결과 요청
         else {
             const response = await fetch(`${SERVER_URL}/api/spin/${machineId}`);
             const data = await response.json();
@@ -171,7 +178,9 @@ async function spin() {
     }
 }
 
+// =========================================================================
 // 🎯 결과 판정
+// =========================================================================
 function checkResult(results, bet) {
     if (results[0] === results[1] && results[1] === results[2]) {
         const symbol = symbols[results[0]];
@@ -203,7 +212,9 @@ function checkResult(results, bet) {
     }
 }
 
+// =========================================================================
 // 🚪 게임 종료 및 관리자 리셋 화면
+// =========================================================================
 function endGame(isManualQuit) {
     isGameOver = true;
     let finalMessage = isManualQuit ? "게임을 종료하고 정산합니다." : "게임이 종료되었습니다.";
