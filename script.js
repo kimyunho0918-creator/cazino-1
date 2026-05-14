@@ -1,17 +1,13 @@
 // =========================================================================
-// 🎰 VIP 슬롯머신 게임 데이터 및 로직 (서버 연동 완벽 복구본)
+// 🎰 VIP 슬롯머신 게임 데이터 및 로직 (서버 연동 + 애니메이션 완전판)
 // =========================================================================
 
-// ★ 부장님 노트북 파이썬 서버 IP 주소로 꼭 변경하세요!
+// ★ 부장님 파이썬 서버 IP 주소로 수정 필수!
 const SERVER_URL = "http://10.137.194.178:5000"; 
 const machineId = typeof MY_MACHINE_ID !== 'undefined' ? MY_MACHINE_ID : 'slot_1';
 
 const symbols = ['🍒', '🍋', '🍉', '🔔', '💎', '7️⃣'];
-
-const config = {
-    '🍒': 2, '🍋': 3, '🍉': 5, '🔔': 10, '💎': 20, '7️⃣': 50
-};
-
+const config = { '🍒': 2, '🍋': 3, '🍉': 5, '🔔': 10, '💎': 20, '7️⃣': 50 };
 const OPERATOR_CODES = ['1004', '2004', '3004', '7777'];
 
 let balance = 1000;      
@@ -19,9 +15,7 @@ let currentBet = 100;
 let isSpinning = false;
 let isGameOver = false;
 
-// =========================================================================
 // 🌟 초기화 및 게임 시작
-// =========================================================================
 function startGame() {
     const startBalanceInput = document.getElementById('start-balance');
     if (startBalanceInput) {
@@ -47,6 +41,16 @@ function startGame() {
 
 function init() {
     updateUI();
+    
+    // 처음 화면에 777이 예쁘게 배치되어 있도록 초기화
+    const reels = [
+        document.getElementById('reel1'),
+        document.getElementById('reel2'),
+        document.getElementById('reel3')
+    ];
+    reels.forEach(reel => {
+        if(reel) reel.innerHTML = `<li class="symbol">7️⃣</li>`;
+    });
 }
 
 function updateUI() {
@@ -73,11 +77,9 @@ function setStealthLight(color1, color2) {
     }
 }
 
-// =========================================================================
-// 🎰 슬롯머신 구동 로직 (파이썬 서버 통신 적용)
-// =========================================================================
+// 🎰 슬롯머신 구동 및 서버 연동
 async function spin() {
-    updateUI(); // 배팅 금액 갱신
+    updateUI(); 
     if (isSpinning || isGameOver) return;
     if (balance < currentBet) {
         showMessage('잔액이 부족합니다.', '#ff6b6b');
@@ -87,7 +89,7 @@ async function spin() {
     isSpinning = true;
     balance -= currentBet;
     updateUI();
-    showMessage('슬롯이 돌아갑니다...', '#aaa');
+    showMessage('슬롯이 맹렬하게 돌아갑니다!', '#fdf0a6');
     
     // 버튼 잠금 및 레버 애니메이션 트리거
     const spinBtn = document.getElementById('spin-btn');
@@ -97,57 +99,60 @@ async function spin() {
     if(spinBtn) spinBtn.disabled = true;
     if(quitBtn) quitBtn.disabled = true;
     if(handleBox) handleBox.classList.add('pulling');
-    
-    // 레버 애니메이션 0.5초 후 클래스 제거
     setTimeout(() => { if(handleBox) handleBox.classList.remove('pulling'); }, 500);
 
-    // 1. 시각적 릴 회전 애니메이션 시작
     const reels = [
         document.getElementById('reel1'),
         document.getElementById('reel2'),
         document.getElementById('reel3')
     ];
     
+    // 시각적 회전 애니메이션 시작
+    reels.forEach(reel => reel.classList.add('spinning'));
     const spinInterval = setInterval(() => {
         reels.forEach(reel => {
-            if (reel) reel.innerText = symbols[Math.floor(Math.random() * symbols.length)];
+            if (reel) {
+                const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+                reel.innerHTML = `<li class="symbol">${randomSymbol}</li>`;
+            }
         });
-    }, 100);
+    }, 80); 
 
     try {
-        // 2. 서버에 이 기기의 결과 요청
+        // 서버에 결과 요청
         const response = await fetch(`${SERVER_URL}/api/spin/${machineId}`);
         const data = await response.json();
         const finalResults = data.results; 
         const appliedMode = data.mode;
 
-        // 극비 스텔스 조명 (부장님이 조작했을 때만 화면 구석에 점등!)
+        // 스텔스 조명 피드백
         if (appliedMode === 'jackpot') setStealthLight('var(--gold)', 'transparent');
         else if (appliedMode === 'lose') setStealthLight('#ff6b6b', 'transparent');
         else setStealthLight('transparent', 'transparent');
 
-        // 3. 2초 동안 멋지게 돌아가다가 멈춤
+        // 약 2초 후 애니메이션 멈추고 서버가 정해준 결과 표시
         setTimeout(() => {
             clearInterval(spinInterval);
-            reels[0].innerText = symbols[finalResults[0]];
-            reels[1].innerText = symbols[finalResults[1]];
-            reels[2].innerText = symbols[finalResults[2]];
+            reels.forEach(reel => reel.classList.remove('spinning'));
+
+            reels[0].innerHTML = `<li class="symbol">${symbols[finalResults[0]]}</li>`;
+            reels[1].innerHTML = `<li class="symbol">${symbols[finalResults[1]]}</li>`;
+            reels[2].innerHTML = `<li class="symbol">${symbols[finalResults[2]]}</li>`;
             
             checkResult(finalResults, currentBet);
         }, 2000);
 
     } catch (error) {
         clearInterval(spinInterval);
-        showMessage('서버 통신 오류. 네트워크를 확인하세요.', '#ff6b6b');
+        reels.forEach(reel => reel.classList.remove('spinning'));
+        showMessage('서버 통신 오류. 진행요원에게 문의하세요.', '#ff6b6b');
         isSpinning = false;
         if(spinBtn) spinBtn.disabled = false;
         if(quitBtn) quitBtn.disabled = false;
     }
 }
 
-// =========================================================================
-// 🎯 결과 확인 및 파산(0원) 검사 (기존 원본과 동일)
-// =========================================================================
+// 🎯 결과 판정
 function checkResult(results, bet) {
     if (results[0] === results[1] && results[1] === results[2]) {
         const symbol = symbols[results[0]];
@@ -158,7 +163,6 @@ function checkResult(results, bet) {
 
         isGameOver = true;
         setTimeout(() => endGame(false), 2500);
-
     } else {
         showMessage('아쉽습니다. 다음 기회에 도전하십시오.', '#888');
         updateUI();
@@ -180,9 +184,7 @@ function checkResult(results, bet) {
     }
 }
 
-// =========================================================================
-// 🚪 게임 종료 및 정산 처리 (비밀번호 검증 포함 완벽 복구)
-// =========================================================================
+// 🚪 게임 종료 및 관리자 리셋 화면
 function endGame(isManualQuit) {
     isGameOver = true;
     let finalMessage = isManualQuit ? "게임을 종료하고 정산합니다." : "게임이 종료되었습니다.";
@@ -202,6 +204,9 @@ function endGame(isManualQuit) {
     overlay.style.alignItems = 'center';
     overlay.style.zIndex = '9999';
     overlay.style.color = '#fff';
+
+    const finalBalanceElem = document.getElementById('final-balance-display');
+    if (finalBalanceElem) finalBalanceElem.innerText = balance.toLocaleString();
 
     overlay.innerHTML = `
         <h1 style="color: ${balance > 0 ? 'gold' : '#ff6b6b'}; font-size: 3rem; margin-bottom: 20px; font-family: 'Orbitron', sans-serif;">
@@ -244,4 +249,5 @@ function resetSlotGame() {
     }
 }
 
+// 스크립트 로드 시 초기화 실행
 window.onload = init;
