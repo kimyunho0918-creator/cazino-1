@@ -278,5 +278,47 @@ function resetSlotGame() {
         pwdInput.focus();
     }
 }
+// =========================================================================
+// 📡 중앙 관제실(CCTV)로 상태 보고하기
+// =========================================================================
+let currentReels = ['7️⃣', '7️⃣', '7️⃣']; // 현재 화면에 보이는 기호
+
+// 서버에 내 상태를 전송하는 함수
+async function reportToServer(statusText) {
+    try {
+        await fetch(`${SERVER_URL}/api/report/${machineId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                balance: balance,
+                status: statusText,
+                reels: currentReels
+            })
+        });
+    } catch (e) {
+        console.log("관제실 보고 실패");
+    }
+}
+
+// 🌟 기존 updateUI 함수를 덮어씌워서, UI가 바뀔 때마다 서버에 보고하게 만듭니다.
+const originalUpdateUI = updateUI;
+updateUI = function() {
+    originalUpdateUI();
+    
+    // 화면에 떠있는 릴 정보 읽어오기
+    const r1 = document.getElementById('reel1');
+    const r2 = document.getElementById('reel2');
+    const r3 = document.getElementById('reel3');
+    
+    if(r1 && r1.innerText) currentReels[0] = r1.innerText.trim();
+    if(r2 && r2.innerText) currentReels[1] = r2.innerText.trim();
+    if(r3 && r3.innerText) currentReels[2] = r3.innerText.trim();
+
+    let status = "대기중";
+    if (isSpinning) status = "회전중...";
+    if (isGameOver) status = "게임 종료";
+
+    reportToServer(status);
+};
 
 window.onload = init;
