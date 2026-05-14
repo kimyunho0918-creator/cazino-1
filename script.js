@@ -3,7 +3,7 @@
 // =========================================================================
 
 // ★ 부장님 파이썬 서버 IP 주소로 수정 필수!
-const SERVER_URL = "http://172.20.10.2:5000"; 
+const SERVER_URL = "http://10.137.194.178:5000"; 
 const machineId = typeof MY_MACHINE_ID !== 'undefined' ? MY_MACHINE_ID : 'slot_1';
 
 // 🌟 config.js 내용을 이곳으로 완전히 가져왔습니다!
