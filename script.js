@@ -1,9 +1,9 @@
 // =========================================================================
-// 🎰 VIP 슬롯머신 통합 로직 (순차 정지 + CCTV 실시간 보고 기능 통합)
+// 🎰 VIP 슬롯머신 통합 로직 (중앙 관제실 실시간 보고 + 순차 정지 기능)
 // =========================================================================
 
 // ★★★ 부장님 노트북의 IP 주소로 꼭 변경하세요!!! ★★★
-const SERVER_URL = "http://10.137.194.178:5000"; 
+const SERVER_URL = "http://192.168.X.X:5000"; 
 const machineId = typeof MY_MACHINE_ID !== 'undefined' ? MY_MACHINE_ID : 'slot_1';
 
 const config = { '🍒': 2, '🍋': 3, '🍉': 5, '🔔': 10, '💎': 20, '7️⃣': 50 };
@@ -16,12 +16,15 @@ let isSpinning = false;
 let isGameOver = false;
 let localCheatMode = null; 
 
-// 📡 관제실에 상태 보고하기
+// =========================================================================
+// 📡 1. 중앙 관제실로 실시간 상태 보고 기능
+// =========================================================================
 async function reportStatus() {
     let statusText = "대기중";
     if (isSpinning) statusText = "회전중...";
     if (isGameOver) statusText = "게임 종료";
 
+    // 현재 기기 화면에 보이는 기호 3개를 읽어옵니다.
     const currentReels = [
         document.getElementById('reel1')?.innerText.trim() || '-',
         document.getElementById('reel2')?.innerText.trim() || '-',
@@ -32,24 +35,45 @@ async function reportStatus() {
         await fetch(`${SERVER_URL}/api/report/${machineId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ balance: balance, status: statusText, reels: currentReels })
+            body: JSON.stringify({ 
+                balance: balance, 
+                status: statusText, 
+                reels: currentReels 
+            })
         });
-    } catch (e) { console.log("관제실 연결 끊김"); }
+    } catch (e) { 
+        console.log("관제실 연결 실패 (서버가 꺼져있거나 IP가 다릅니다)"); 
+    }
 }
 
+// UI를 업데이트할 때마다 자동으로 서버에 보고서를 보냅니다.
 function updateUI() {
     const balanceElem = document.getElementById('balance-display');
     const betInput = document.getElementById('bet-input');
+    
     if (balanceElem) balanceElem.innerText = balance.toLocaleString();
     if (betInput) currentBet = parseInt(betInput.value) || 100;
-    reportStatus(); // UI가 바뀔 때마다 서버에 자동 보고
+    
+    // 🌟 화면이 바뀔 때마다 무조건 관제실에 보고!
+    reportStatus(); 
 }
 
+// =========================================================================
+// 🌟 2. 초기화 및 기본 게임 흐름
+// =========================================================================
 function init() {
-    const reels = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
-    reels.forEach(reel => { if(reel) reel.innerHTML = `<li class="symbol">7️⃣</li>`; });
+    const reels = [
+        document.getElementById('reel1'), 
+        document.getElementById('reel2'), 
+        document.getElementById('reel3')
+    ];
+    reels.forEach(reel => { 
+        if(reel) reel.innerHTML = `<li class="symbol">7️⃣</li>`; 
+    });
+    
     updateUI();
 
+    // 키보드 비밀 조작 (서버가 끊겼을 때를 대비한 로컬 조작 기능)
     window.addEventListener('keydown', (e) => {
         if (e.key === '1') { localCheatMode = 'win_cherry'; setStealthLight('#e91e63', 'transparent'); }
         if (e.key === '2') { localCheatMode = 'lose'; setStealthLight('#f44336', 'transparent'); }
@@ -81,6 +105,9 @@ function setStealthLight(color1, color2) {
     if (light) { light.style.background = color1; light.style.boxShadow = `0 0 10px ${color1}`; }
 }
 
+// =========================================================================
+// 🎰 3. 슬롯머신 구동 로직 (애니메이션 + 순차 정지 + 서버 통신)
+// =========================================================================
 async function spin() {
     updateUI(); 
     if (isSpinning || isGameOver) return;
@@ -90,7 +117,7 @@ async function spin() {
 
     isSpinning = true;
     balance -= currentBet;
-    updateUI();
+    updateUI(); // 잔액이 깎인 상태를 즉시 보고
     showMessage('슬롯이 맹렬하게 돌아갑니다!', '#fdf0a6');
     
     document.getElementById('spin-btn').disabled = true;
@@ -100,11 +127,16 @@ async function spin() {
     if(handleBox) handleBox.classList.add('pulling');
     setTimeout(() => { if(handleBox) handleBox.classList.remove('pulling'); }, 500);
 
-    const reels = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
+    const reels = [
+        document.getElementById('reel1'), 
+        document.getElementById('reel2'), 
+        document.getElementById('reel3')
+    ];
     reels.forEach(reel => reel.classList.add('spinning'));
     
     let reelStopped = [false, false, false];
 
+    // 빠른 속도로 기호 변경
     const spinInterval = setInterval(() => {
         reels.forEach((reel, index) => {
             if (reel && !reelStopped[index]) {
@@ -117,13 +149,16 @@ async function spin() {
     try {
         let finalResults, appliedMode;
 
+        // 관제실보다 기기 앞의 키보드 조작이 우선 적용됨
         if (localCheatMode) {
             appliedMode = localCheatMode;
             if (appliedMode === 'jackpot') finalResults = [5, 5, 5];
             else if (appliedMode === 'lose') finalResults = [0, 1, 2];
             else if (appliedMode === 'win_cherry') finalResults = [0, 0, 0];
             localCheatMode = null; 
-        } else {
+        } 
+        // 서버(관제실)에 결과 요청
+        else {
             const response = await fetch(`${SERVER_URL}/api/spin/${machineId}`);
             const data = await response.json();
             finalResults = data.results; 
@@ -132,25 +167,31 @@ async function spin() {
 
         if (appliedMode === 'jackpot') setStealthLight('var(--gold)', 'transparent');
         else if (appliedMode === 'lose') setStealthLight('#ff6b6b', 'transparent');
-        else if (appliedMode === 'win') setStealthLight('var(--neon-green)', 'transparent');
+        else if (appliedMode === 'tease') setStealthLight('#ff9800', 'transparent');
         else setStealthLight('transparent', 'transparent');
 
-        // 순차 정지 및 멈출 때마다 서버 보고
+        // 🌟 1초 뒤 첫 번째 칸 정지 + 관제실에 보고
         setTimeout(() => {
             reelStopped[0] = true; reels[0].classList.remove('spinning');
-            reels[0].innerHTML = `<li class="symbol">${symbols[finalResults[0]]}</li>`; reportStatus();
+            reels[0].innerHTML = `<li class="symbol">${symbols[finalResults[0]]}</li>`; 
+            reportStatus(); 
         }, 1000);
 
+        // 🌟 1.5초 뒤 두 번째 칸 정지 + 관제실에 보고
         setTimeout(() => {
             reelStopped[1] = true; reels[1].classList.remove('spinning');
-            reels[1].innerHTML = `<li class="symbol">${symbols[finalResults[1]]}</li>`; reportStatus();
+            reels[1].innerHTML = `<li class="symbol">${symbols[finalResults[1]]}</li>`; 
+            reportStatus(); 
         }, 1500);
 
+        // 🌟 2초 뒤 세 번째 칸 정지 + 관제실에 보고
         setTimeout(() => {
             reelStopped[2] = true; reels[2].classList.remove('spinning');
-            reels[2].innerHTML = `<li class="symbol">${symbols[finalResults[2]]}</li>`; reportStatus();
+            reels[2].innerHTML = `<li class="symbol">${symbols[finalResults[2]]}</li>`; 
+            reportStatus(); 
         }, 2000);
 
+        // 🌟 2.5초 뒤 정산 시작
         setTimeout(() => {
             clearInterval(spinInterval);
             checkResult(finalResults, currentBet);
@@ -163,10 +204,13 @@ async function spin() {
         isSpinning = false;
         document.getElementById('spin-btn').disabled = false;
         document.getElementById('quit-btn').disabled = false;
-        reportStatus();
+        updateUI();
     }
 }
 
+// =========================================================================
+// 🎯 4. 결과 판정 및 게임 종료
+// =========================================================================
 function checkResult(results, bet) {
     if (results[0] === results[1] && results[1] === results[2]) {
         const symbol = symbols[results[0]];
@@ -174,26 +218,30 @@ function checkResult(results, bet) {
         balance += winAmount;
         showMessage(`🎉 당첨! +${winAmount.toLocaleString()} PT (${symbol})`, 'var(--gold)');
         updateUI();
-        isGameOver = true; setTimeout(() => endGame(false), 2500);
+        isGameOver = true; 
+        setTimeout(() => endGame(false), 2500);
     } else {
         showMessage('아쉽습니다. 다음 기회에 도전하십시오.', '#888');
         updateUI();
+        
         if (balance <= 0) {
             showMessage('잔액이 모두 소진되었습니다. 게임을 종료합니다.', '#ff6b6b');
-            isGameOver = true; setTimeout(() => endGame(false), 2500);
+            isGameOver = true; 
+            setTimeout(() => endGame(false), 2500);
             return; 
         }
+        
         isSpinning = false;
         setStealthLight('transparent', 'transparent');
         document.getElementById('spin-btn').disabled = false;
         document.getElementById('quit-btn').disabled = false;
-        reportStatus();
+        updateUI();
     }
 }
 
 function endGame(isManualQuit) {
     isGameOver = true;
-    updateUI(); // 종료 상태 보고
+    updateUI(); // 종료 상태를 관제실에 최종 보고
     let finalMessage = isManualQuit ? "게임을 종료하고 정산합니다." : "게임이 종료되었습니다.";
     
     const overlay = document.createElement('div');
@@ -218,12 +266,21 @@ function endGame(isManualQuit) {
 
     document.body.appendChild(overlay);
     const pwdInput = document.getElementById('admin-reset-pwd');
-    if (pwdInput) { pwdInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') resetSlotGame(); }); pwdInput.focus(); }
+    if (pwdInput) { 
+        pwdInput.addEventListener('keypress', function(e) { 
+            if (e.key === 'Enter') resetSlotGame(); 
+        }); 
+        pwdInput.focus(); 
+    }
 }
 
 function resetSlotGame() {
-    if (OPERATOR_CODES.includes(document.getElementById('admin-reset-pwd').value)) location.reload(); 
-    else { alert('❌ 관리자 비밀번호 오류'); document.getElementById('admin-reset-pwd').value = ''; }
+    if (OPERATOR_CODES.includes(document.getElementById('admin-reset-pwd').value)) {
+        location.reload(); 
+    } else { 
+        alert('❌ 관리자 비밀번호 오류'); 
+        document.getElementById('admin-reset-pwd').value = ''; 
+    }
 }
 
 window.onload = init;
