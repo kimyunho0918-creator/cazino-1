@@ -3,7 +3,7 @@
 // =========================================================================
 
 // ★★★ 부장님 노트북의 IP 주소로 꼭 변경하세요!!! ★★★
-const SERVER_URL = "http://192.168.X.X:5000"; 
+const SERVER_URL = "http://10.137.194.178:5000"; 
 const machineId = typeof MY_MACHINE_ID !== 'undefined' ? MY_MACHINE_ID : 'slot_1';
 
 const config = { '🍒': 2, '🍋': 3, '🍉': 5, '🔔': 10, '💎': 20, '7️⃣': 50 };
