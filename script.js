@@ -1,9 +1,9 @@
 // =========================================================================
-// 🎰 VIP 슬롯머신 통합 로직 (관제실 연결 + 자체 확률 적용 버전)
+// 🎰 VIP 슬롯머신 통합 로직 (관제실 명령 100% 수신 완료 버전)
 // =========================================================================
 
 // 👇👇👇 여기에 부장님 노트북의 IP 주소를 적어주세요! 👇👇👇
-const SERVER_URL = "http://10.137.194.178:5000"; // <-- 숫자 부분을 실제 IP로 변경!
+const SERVER_URL = "http://10.137.194.178:5000"; // <-- 반드시 실제 IP로 변경!
 // 👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆
 
 const machineId = typeof MY_MACHINE_ID !== 'undefined' ? MY_MACHINE_ID : 'slot_1';
@@ -41,7 +41,7 @@ async function reportStatus() {
             })
         });
     } catch (e) { 
-        console.log("관제실 연결 실패 (서버가 꺼져있거나 IP가 틀렸습니다)"); 
+        console.log("관제실 연결 실패"); 
     }
 }
 
@@ -99,7 +99,7 @@ function setStealthLight(color1, color2) {
     if (light) { light.style.background = color1; light.style.boxShadow = `0 0 10px ${color1}`; }
 }
 
-// 🎰 3. 슬롯머신 구동 로직 (95% 꽝, 5% 당첨 + 관제실 보고)
+// 🎰 3. 슬롯머신 구동 로직 (이제 혼자 주사위를 굴리지 않고 서버 명령을 받습니다!)
 async function spin() {
     updateUI(); 
     if (isSpinning || isGameOver) return;
@@ -141,83 +141,64 @@ async function spin() {
         });
     }, 80); 
 
-    let finalResults, appliedMode;
+    try {
+        let finalResults, appliedMode;
 
-    if (localCheatMode) {
-        appliedMode = localCheatMode;
-        if (appliedMode === 'jackpot') finalResults = [5, 5, 5];
-        else if (appliedMode === 'lose') finalResults = [0, 1, 2];
-        else if (appliedMode === 'win_cherry') finalResults = [0, 0, 0];
-        localCheatMode = null; 
-    } 
-    else {
-        const winRateRoll = Math.random() * 100;
-
-        if (winRateRoll >= 5.0) {
-            appliedMode = 'lose';
-            const r1 = Math.floor(Math.random() * symbols.length);
-            let r2 = Math.floor(Math.random() * symbols.length);
-            let r3 = Math.floor(Math.random() * symbols.length);
-            
-            while (r1 === r2 && r2 === r3) {
-                r2 = Math.floor(Math.random() * symbols.length);
-                r3 = Math.floor(Math.random() * symbols.length);
-            }
-            finalResults = [r1, r2, r3];
-        } else {
-            const winWeights = [
-                { index: 0, weight: 80.0 },
-                { index: 1, weight: 15.0 },
-                { index: 2, weight: 2.0 },
-                { index: 3, weight: 1.5  },
-                { index: 4, weight: 1.49999  },
-                { index: 5, weight: 0.00001  } 
-            ];
-
-            const symbolRoll = Math.random() * 100;
-            let accumulatedWeight = 0;
-            let selectedIndex = 0;
-
-            for (const item of winWeights) {
-                accumulatedWeight += item.weight;
-                if (symbolRoll <= accumulatedWeight) {
-                    selectedIndex = item.index;
-                    break;
-                }
-            }
-
-            appliedMode = (selectedIndex === 5) ? 'jackpot' : 'win';
-            finalResults = [selectedIndex, selectedIndex, selectedIndex];
+        // 1순위: 오프라인 키보드 조작
+        if (localCheatMode) {
+            appliedMode = localCheatMode;
+            if (appliedMode === 'jackpot') finalResults = [5, 5, 5];
+            else if (appliedMode === 'lose') finalResults = [0, 1, 2];
+            else if (appliedMode === 'win_cherry') finalResults = [0, 0, 0];
+            localCheatMode = null; 
+        } 
+        // 🌟 2순위: 서버(관제실)에 결과 요청 (여기가 수정된 핵심 포인트!)
+        else {
+            const response = await fetch(`${SERVER_URL}/api/spin/${machineId}`);
+            const data = await response.json();
+            finalResults = data.results; 
+            appliedMode = data.mode;
         }
-    }
 
-    if (appliedMode === 'jackpot') setStealthLight('var(--gold)', 'transparent');
-    else if (appliedMode === 'lose') setStealthLight('#ff6b6b', 'transparent');
-    else if (appliedMode === 'tease') setStealthLight('#ff9800', 'transparent');
-    else setStealthLight('transparent', 'transparent');
+        // 스텔스 조명 피드백
+        if (appliedMode === 'jackpot') setStealthLight('var(--gold)', 'transparent');
+        else if (appliedMode === 'lose') setStealthLight('#ff6b6b', 'transparent');
+        else if (appliedMode === 'tease') setStealthLight('#ff9800', 'transparent');
+        else setStealthLight('transparent', 'transparent');
 
-    setTimeout(() => {
-        reelStopped[0] = true; 
-        if (reels[0]) { reels[0].classList.remove('spinning'); reels[0].innerHTML = `<li class="symbol">${symbols[finalResults[0]]}</li>`; }
-        reportStatus();
-    }, 1000);
+        // 순차 정지 및 보고
+        setTimeout(() => {
+            reelStopped[0] = true; 
+            if (reels[0]) { reels[0].classList.remove('spinning'); reels[0].innerHTML = `<li class="symbol">${symbols[finalResults[0]]}</li>`; }
+            reportStatus();
+        }, 1000);
 
-    setTimeout(() => {
-        reelStopped[1] = true; 
-        if (reels[1]) { reels[1].classList.remove('spinning'); reels[1].innerHTML = `<li class="symbol">${symbols[finalResults[1]]}</li>`; }
-        reportStatus();
-    }, 1500);
+        setTimeout(() => {
+            reelStopped[1] = true; 
+            if (reels[1]) { reels[1].classList.remove('spinning'); reels[1].innerHTML = `<li class="symbol">${symbols[finalResults[1]]}</li>`; }
+            reportStatus();
+        }, 1500);
 
-    setTimeout(() => {
-        reelStopped[2] = true; 
-        if (reels[2]) { reels[2].classList.remove('spinning'); reels[2].innerHTML = `<li class="symbol">${symbols[finalResults[2]]}</li>`; }
-        reportStatus();
-    }, 2000);
+        setTimeout(() => {
+            reelStopped[2] = true; 
+            if (reels[2]) { reels[2].classList.remove('spinning'); reels[2].innerHTML = `<li class="symbol">${symbols[finalResults[2]]}</li>`; }
+            reportStatus();
+        }, 2000);
 
-    setTimeout(() => {
+        setTimeout(() => {
+            clearInterval(spinInterval);
+            checkResult(finalResults, currentBet);
+        }, 2500);
+
+    } catch (error) {
         clearInterval(spinInterval);
-        checkResult(finalResults, currentBet);
-    }, 2500);
+        reels.forEach(reel => { if(reel) reel.classList.remove('spinning'); });
+        showMessage('서버 통신 오류. 진행요원에게 문의하세요.', '#ff6b6b');
+        isSpinning = false;
+        if (spinBtn) spinBtn.disabled = false;
+        if (quitBtn) quitBtn.disabled = false;
+        reportStatus();
+    }
 }
 
 function checkResult(results, bet) {
