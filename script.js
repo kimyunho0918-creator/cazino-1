@@ -166,12 +166,12 @@ async function spin() {
             finalResults = [r1, r2, r3];
         } else {
             const winWeights = [
-                { index: 0, weight: 50.0 },
-                { index: 1, weight: 25.0 },
-                { index: 2, weight: 13.0 },
-                { index: 3, weight: 8.0  },
-                { index: 4, weight: 3.5  },
-                { index: 5, weight: 0.5  } 
+                { index: 0, weight: 80.0 },
+                { index: 1, weight: 15.0 },
+                { index: 2, weight: 2.0 },
+                { index: 3, weight: 1.5  },
+                { index: 4, weight: 1.49999  },
+                { index: 5, weight: 0.00001  } 
             ];
 
             const symbolRoll = Math.random() * 100;
